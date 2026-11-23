@@ -13,8 +13,10 @@ Portable playbooks for coding agents and their human collaborators.
 | [`context-cleanup`](skills/context-cleanup/SKILL.md) | Audit and prune a repository’s docs and artifacts. Resolve stale or contradictory guidance without losing requirements or evidence. Not for chat compaction. |
 | [`context-hygiene`](skills/context-hygiene/SKILL.md) | Write and revise concise specs, plans, runbooks, reports, and agent instructions. Keep rules in one place and verify readers can still find them. |
 | [`datadog`](skills/datadog/SKILL.md) | Find and install just the official Datadog Labs skill needed for the current task. |
+| [`opencode`](skills/opencode/SKILL.md) | Work with the OpenCode CLI, models, servers, and MCP; troubleshoot xAI authentication via an indexed reference. |
 | [`presentation-design`](skills/presentation-design/SKILL.md) | Design or improve presentations, pitch decks, and executive slides. Shape the narrative, choose visuals, and verify the rendered slides and exported PDF. |
 | [`root-session`](skills/root-session/SKILL.md) | Use `/root-session <task>` to hand off a task and its context to a new session you can follow. Use `/root-session` by itself to hand off the current task. |
+| [`skill-scope`](skills/skill-scope/SKILL.md) | Decide whether a skill should be upstream-managed, project-local, or user-global before installing or sharing it. |
 | [`skill-stocktake`](skills/skill-stocktake/SKILL.md) | Review a skill catalog for quality, overlap, broken dependencies, and publication risks. |
 
 ## Install
