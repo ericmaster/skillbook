@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-11-23
+
 - Add `presentation-design`, `context-hygiene`, and `context-cleanup`.
 - Add a README illustration and an index with descriptions of all available skills.
 - License Skillbook under MIT.
