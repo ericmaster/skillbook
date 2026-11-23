@@ -26,3 +26,7 @@ test ! -e .agents/skills/presentation-design &&
 Check for an existing skill with the same name before copying. Each skill can
 be used independently. Installing both context skills covers writing new docs
 and auditing what is already there. No provider or external service is required.
+
+## License
+
+[MIT](LICENSE).
