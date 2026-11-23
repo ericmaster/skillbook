@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Add `session-finder` with Antigravity, Claude Code, Codex, and OpenCode references.
+
 ## [0.1.0] — 2026-11-23
 
 - Add `presentation-design`, `context-hygiene`, and `context-cleanup`.

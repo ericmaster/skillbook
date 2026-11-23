@@ -18,7 +18,8 @@ A local CLI version does not prove which server handles its requests.
 2. **Verify the scope.** Confirm the intended project, server, and session before
    resuming or mutating anything. Keep the same server when troubleshooting a
    shared session. Use `--server <url>` or `--standalone` only if the installed
-   CLI supports it and that mode is the intended one.
+   CLI supports it and that mode is the intended one. If the session ID is
+   unknown, use `session-finder` if installed rather than guessing.
 3. **Inspect before changing.** Use supported read-only commands to check
    model availability, authentication metadata, or integration status. Check
    the [providers](https://opencode.ai/docs/providers/),
