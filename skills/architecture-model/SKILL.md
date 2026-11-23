@@ -10,6 +10,10 @@ source; images and exports are views of it, not separate models. Start from the
 existing workspace, or ask where to store a new one if the project has no
 convention. Skip views that do not answer a question.
 
+Use `spec-ir` for a feature's behavioral contract, such as state transitions or
+API sequences. C4 owns the system structure; link a behavioral spec rather than
+copying its rules into the architecture model.
+
 1. Name the audience and question. Use a system-context view for people,
    systems, and external dependencies. Add a container view to show applications,
    data stores, and how they communicate. Use a component view only when it

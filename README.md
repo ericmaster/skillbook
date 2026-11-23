@@ -19,6 +19,7 @@ Portable playbooks for coding agents and their human collaborators.
 | [`session-finder`](skills/session-finder/SKILL.md) | Find an existing Antigravity, Claude Code, Codex, or OpenCode session using its native picker or list, without searching transcript contents. |
 | [`skill-scope`](skills/skill-scope/SKILL.md) | Decide whether a skill should be upstream-managed, project-local, or user-global before installing or sharing it. |
 | [`skill-stocktake`](skills/skill-stocktake/SKILL.md) | Review a skill catalog for quality, overlap, broken dependencies, and publication risks. |
+| [`spec-ir`](skills/spec-ir/SKILL.md) | Specify feature behavior in YAML and generate Mermaid flow, state, sequence, and entity-relationship diagrams. |
 
 ## Install
 
