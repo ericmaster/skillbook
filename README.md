@@ -1,12 +1,16 @@
 # Skillbook
 
+![An open field notebook with colorful tabs and sketches of a slide, notes, and a magnifying glass](assets/skillbook-hero.webp)
+
 Portable playbooks for coding agents and their human collaborators.
 
-| Skill | Use it to |
+## Available skills
+
+| Skill | Description |
 |---|---|
-| [`presentation-design`](skills/presentation-design/SKILL.md) | Design slide narratives and catch problems in rendered decks before delivery. |
-| [`context-hygiene`](skills/context-hygiene/SKILL.md) | Keep agent-facing documentation concise without losing requirements or evidence. |
-| [`context-cleanup`](skills/context-cleanup/SKILL.md) | Audit an existing repository for stale or duplicated documentation and artifacts. |
+| [`context-cleanup`](skills/context-cleanup/SKILL.md) | Audit and prune a repository’s docs and artifacts. Resolve stale or contradictory guidance without losing requirements or evidence. Not for chat compaction. |
+| [`context-hygiene`](skills/context-hygiene/SKILL.md) | Write and revise concise specs, plans, runbooks, reports, and agent instructions. Keep rules in one place and verify readers can still find them. |
+| [`presentation-design`](skills/presentation-design/SKILL.md) | Design or improve presentations, pitch decks, and executive slides. Shape the narrative, choose visuals, and verify the rendered slides and exported PDF. |
 
 ## Install
 
