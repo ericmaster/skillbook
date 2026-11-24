@@ -75,3 +75,94 @@ def test_nested_fence_and_crlf(tmp_path):
     expected = path.read_bytes()
     assert expected.startswith((source + "> " + START + "\r\n> ```mermaid").encode())
     assert run(path).returncode == 0 and path.read_bytes() == expected
+
+
+V2 = """```yaml spec-ir
+version: 2
+id: sample
+kind: flow
+lang: es
+meta: {owner: QA, refs: ['./notes.md#scope']}
+nodes:
+  - id: reading
+    type: step
+    label: Leer
+    rules:
+      - {field: deadline, op: lte, value: 120, unit: s}
+    meta: {owner: qa}
+  - {id: answer, type: step, label: Responder}
+edges:
+  - from: reading
+    to: answer
+    label: Empezar
+    when: {all: [{field: playback, op: eq, value: done}, {field: microphone, op: eq, value: true}]}
+    meta: {refs: ['#example']}
+```"""
+
+
+# Spec: skills/spec-ir/references/spec-ir.md
+def test_v2_refresh_independence_and_idempotency(tmp_path):
+    path = tmp_path / "graph.md"
+    rest = "\n\nLeave **this** alone.\n"
+    path.write_text(V2 + f"\n{START}\n```mermaid\nstale\n```\n{END}" + rest)
+    assert run(path).returncode == 0
+    text = path.read_text()
+    assert text.endswith(rest) and "stale" not in text and text.count(START) == 1
+    assert "playback#32;#61;#32;done" in text
+    assert "**Resumen generado.** Leer → Responder si (playback = done y microphone = sí)." in text
+    assert "deadline ≤ 120 s" in text
+    assert run(path).returncode == 0 and path.read_text() == text
+    no_meta = "\n".join(line for line in V2.splitlines() if not line.lstrip().startswith("meta:"))
+    path.write_text(no_meta + "\n" + text[text.index(START):])
+    assert run(path).returncode == 0 and path.read_text().split(START)[1] == text.split(START)[1]
+    path.write_text(text.replace("value: done", "value: failed"))
+    assert run(path).returncode == 0
+    assert "playback#32;#61;#32;failed" in path.read_text() and "playback = failed" in path.read_text()
+
+
+# Spec: skills/spec-ir/references/spec-ir.md
+@pytest.mark.parametrize(("before", "after"), [
+    ("owner: qa", "rules: 'never do this'"),
+    ("owner: qa", "owner: 'review before opening'"),
+    ("['#example']", "'see the notes'"),
+    ("version: 2", "version: true"),
+    ("value: 120", "value: 'use limited time'"),
+    ("value: 120", "value: .inf"),
+    ("op: lte", "op: [lte]"),
+    ("value: 120", "value: 120, description: 'long prose'"),
+    ("op: eq, value: done", "op: [eq], value: done"),
+    ("op: eq, value: done", "op: eq, value: 'when the audio is done'"),
+    ("label: Responder", "label: 'Responder', status: active"),
+    ("kind: flow", "kind: data"),
+])
+def test_v2_rejects_freeform_or_invalid_semantics(tmp_path, before, after):
+    path = tmp_path / "invalid.md"
+    source = V2.replace(before, after)
+    path.write_text(source)
+    result = run(path)
+    assert result.returncode != 0 and b"Traceback" not in result.stderr and path.read_text() == source
+
+
+# Spec: skills/spec-ir/references/spec-ir.md
+def test_v2_er_is_semantic_and_legacy_er_is_unchanged(tmp_path):
+    path = tmp_path / "er.md"
+    v2 = V2.replace("kind: flow", "kind: data")
+    v2 = v2.replace(next(line for line in v2.splitlines() if "when:" in line), '    er: "||--o{"')
+    path.write_text(v2)
+    assert run(path).returncode == 0 and "N0 ||--o{ N1" in path.read_text()
+    assert "Empezar: ||--o{" in path.read_text()
+    legacy = SPEC.replace("kind: flow", "kind: data").replace("sla: 30", 'er: "||--o{"')
+    path.write_text(legacy)
+    assert run(path).returncode == 0 and "N0 ||--o{ N1" in path.read_text()
+    assert "Generated overview" not in path.read_text()
+
+
+# Spec: skills/spec-ir/references/spec-ir.md
+def test_v2_weighted_sum_preserves_weights(tmp_path):
+    path = tmp_path / "weights.md"
+    path.write_text(V2.replace("deadline, op: lte, value: 120, unit: s",
+                               "grade, op: weighted_sum, value: {first: 0.123456789, second: 0.876543211}"))
+    assert run(path).returncode == 0
+    result = path.read_text()
+    assert "grade = 0.123456789 × first + 0.876543211 × second" in result
+    assert run(path).returncode == 0 and path.read_text() == result

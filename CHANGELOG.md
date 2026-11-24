@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-- Add `spec-ir` with a YAML behavior schema and Mermaid renderer.
+- Add `spec-ir` with guarded edges, atomic node rules, and generated Mermaid and overviews; retain support for unversioned graphs.
 - Add `session-finder` with Antigravity, Claude Code, Codex, and OpenCode references.
 
 ## [0.1.0] — 2026-11-23
