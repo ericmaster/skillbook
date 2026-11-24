@@ -6,6 +6,7 @@ import argparse
 import math
 import re
 from collections import Counter
+from decimal import Decimal
 from pathlib import Path
 
 import yaml
@@ -14,7 +15,8 @@ from markdown_it import MarkdownIt
 
 START, END = "<!-- spec-ir:start -->", "<!-- spec-ir:end -->"
 HEAD = dict(flow="flowchart TD", state="stateDiagram-v2", api="sequenceDiagram", data="erDiagram")
-SUMMARY = {"en": "**Generated overview.**", "es": "**Resumen generado.**"}
+SUMMARY = {"en": "**Description.**", "es": "**Descripción.**"}
+LEGACY_SUMMARIES = ("**Generated overview.**", "**Resumen generado.**")
 OPS = dict(eq="=", ne="≠", lt="<", lte="≤", gt=">", gte="≥", includes="∋", excludes="∌")
 SYMBOL = r"[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*"
 ER = r"(\|o|\|\||}o|}\|)(--|\.\.)(o\||\|\||o\{|\|\{)"
@@ -193,10 +195,11 @@ def node_title(node, lang):
 
 
 # Spec: skills/spec-ir/references/spec-ir.md
-def label(text):
-    # Numeric Mermaid entities keep delimiters, directives and line breaks out of the grammar.
+def label(text, *, quoted=False):
+    # Quoted labels can keep safe punctuation and spaces; escape syntax delimiters.
     text = " ".join(text.split())
-    return "".join(c if c.isalnum() else f"#{ord(c)};" for c in text)
+    safe = " .,-=()≤≥≠×∋∌—" if quoted else ""
+    return "".join(c if c.isalnum() or c in safe else f"#{ord(c)};" for c in text)
 
 
 # Spec: skills/spec-ir/references/spec-ir.md
@@ -206,7 +209,7 @@ def diagram(graph):
     ids = {}
     for node in graph["nodes"]:
         name = ids[node["id"]] = f"N{len(ids)}"
-        text = label(node_title(node, lang))
+        text = label(node_title(node, lang), quoted=kind != "api")
         lines.append("    " + {
             "flow": f'{name}["{text}"]', "state": f'state "{text}" as {name}',
             "api": f"participant {name} as {text}", "data": f'{name}["{text}"]',
@@ -215,7 +218,7 @@ def diagram(graph):
         text = edge["label"]
         if "when" in edge:
             text += (" — si " if lang == "es" else " — if ") + condition(edge["when"], lang)
-        a, b, text = ids[edge["from"]], ids[edge["to"]], label(text)
+        a, b, text = ids[edge["from"]], ids[edge["to"]], label(text, quoted=kind in ("flow", "data"))
         if kind == "data":
             connector = edge.get("er", "}o..o{")
             if "er" not in edge:
@@ -229,31 +232,96 @@ def diagram(graph):
 
 
 # Spec: skills/spec-ir/references/spec-ir.md
+def prose_condition(item, lang, *, nested=False):
+    es = lang == "es"
+    for key, conjunction in (("all", " y " if es else " and "), ("any", " o " if es else " or ")):
+        if key in item:
+            text = conjunction.join(prose_condition(term, lang, nested=True) for term in item[key])
+            return f"({text})" if nested else text
+
+    *scope, field = item["field"].replace("_", " ").split(".")
+    if scope:
+        if es and field == "por defecto":
+            field = f"el valor predeterminado de «{' / '.join(scope)}»"
+        else:
+            field += f" ({' / '.join(scope)})"
+    op, value = item["op"], item["value"]
+    if op == "weighted_sum":
+        terms = []
+        for name, weight in value.items():
+            percent = format((Decimal(str(weight)) * 100).normalize(), "f")
+            name = name.replace("_", " ").replace(".", " ")
+            terms.append(f"un {percent} % de {name}" if es else f"{percent}% of {name}")
+        return field + (" se calcula con " if es else " is calculated from ") + (
+            " y " if es else " and "
+        ).join(terms)
+
+    if type(value) is bool:
+        positive = value == (op == "eq")
+        if es:
+            return f"{'' if positive else 'no '}se cumple «{field}»"
+        return f"“{field}” is {'met' if positive else 'not met'}"
+    if isinstance(value, str):
+        value = value.replace("_", " ").replace(".", " ")
+        if es and op in ("eq", "ne"):
+            return f"«{field}» {'no ' if op == 'ne' else ''}tiene el valor «{value}»"
+        value = f"«{value}»" if es else f"“{value}”"
+    elif "unit" in item:
+        value = f"{value} {item['unit']}"
+    operators = {
+        "eq": ("is", "es"), "ne": ("is not", "no es"), "lt": ("is less than", "es menor que"),
+        "lte": ("is at most", "es como máximo"), "gt": ("is greater than", "es mayor que"),
+        "gte": ("is at least", "es como mínimo"), "includes": ("includes", "incluye"),
+        "excludes": ("excludes", "excluye"),
+    }
+    return f"{field} {operators[op][es]} {value}"
+
+
+# Spec: skills/spec-ir/references/spec-ir.md
 def explanation(graph):
     lang = graph["lang"]
+    es = lang == "es"
     titles = {node["id"]: node_title(node, lang) for node in graph["nodes"]}
-    edges = graph["edges"]
+    proposed = {node["id"] for node in graph["nodes"] if "status" in node}
+    edges = [edge for edge in graph["edges"] if not proposed.intersection((edge["from"], edge["to"]))] or graph["edges"]
     guards = [edge for edge in edges if "when" in edge]
     forks = Counter(edge["from"] for edge in guards)
-    chosen = sorted(guards, key=lambda edge: -forks[edge["from"]])[:2] or edges[:2]
-    if guards and guards[-1] not in chosen:
-        chosen.append(guards[-1])
+    # Prefer the first fork with multiple onward edges over retry loops alone.
+    onward = Counter(edge["from"] for edge in guards if edge["from"] != edge["to"])
+    chosen = sorted(guards, key=lambda edge: (onward[edge["from"]] < 2, forks[edge["from"]] < 2))[:2] or edges[:2]
     parts = []
-    for edge in chosen:
-        text = f'{titles[edge["from"]]} → {titles[edge["to"]]}'
-        if "when" in edge:
-            text += (" si " if lang == "es" else " if ") + condition(edge["when"], lang)
+    for index, edge in enumerate(chosen):
+        a, b = titles[edge["from"]], titles[edge["to"]]
         if graph["kind"] == "data":
-            text += f' ({edge["label"]}: {edge["er"]})' if "er" in edge else f' ({edge["label"]})'
+            relation = edge["label"]
+            text = (f"«{a}» se relaciona con «{b}» mediante «{relation}»" if es
+                    else f"“{a}” is related to “{b}” through “{relation}”")
+            if "er" in edge:
+                text += f' ({"cardinalidad" if es else "cardinality"}: {edge["er"]})'
+        else:
+            if index and edge["from"] == chosen[0]["from"]:
+                text = "También" if es else "From the same step,"
+            else:
+                text = f"En el paso «{a}»," if es else f"From “{a}”,"
+            if edge["from"] == edge["to"]:
+                text += " se puede repetir el paso" if es else " the step can be repeated"
+            else:
+                text += f" se puede pasar a «{b}»" if es else f" the flow can move to “{b}”"
+            if "when" in edge:
+                text += (" cuando " if es else " when ") + prose_condition(edge["when"], lang)
         parts.append(text)
     rules = [(node, rule) for node in graph["nodes"] for rule in node.get("rules", [])
              if "status" not in rule and "status" not in node]
     rules.sort(key=lambda pair: not (number(pair[1]["value"]) or pair[1]["op"] == "weighted_sum"))
     if rules:
         node, rule = rules[0]
-        parts.append(f'{titles[node["id"]]}: {condition(rule, lang)}')
+        prefix = f'En el paso «{titles[node["id"]]}», ' if es else f'At “{titles[node["id"]]}”, '
+        parts.append(prefix + prose_condition(rule, lang))
     if not parts:
-        parts = list(titles.values())[:2] or (["Grafo vacío"] if lang == "es" else ["Empty graph"])
+        names = list(titles.values())[:2]
+        parts = [(("El grafo incluye " if es else "The graph includes ")
+                  + (" y " if es else " and ").join(f"«{name}»" if es else f"“{name}”" for name in names))
+                 if names else ("El grafo no contiene pasos" if es else "The graph contains no steps")]
     prose = ". ".join(" ".join(part.split()) for part in parts) + "."
     # Author strings stay literal Markdown text, including links and HTML delimiters.
     prose = re.sub(r"[&<>\\`*_\[\]~]", lambda m: f"&#{ord(m[0])};", prose)
@@ -270,7 +338,8 @@ def generated_end(tokens, stop):
     offset = tokens[1].map[1]
     if (len(tokens) >= 6 and [t.type for t in tokens[2:5]] == ["paragraph_open", "inline", "paragraph_close"]
             and tokens[2].map == [offset + 1, offset + 2]
-            and any(tokens[3].content.startswith(heading + " ") for heading in SUMMARY.values())):
+            and any(tokens[3].content.startswith(heading + " ")
+                    for heading in (*SUMMARY.values(), *LEGACY_SUMMARIES))):
         end, offset = tokens[5], offset + 3
     if end.type != "html_block" or end.content.strip() != END or end.map != [offset, offset + 1]:
         raise ValueError(f"line {stop + 1}: damaged generated region")

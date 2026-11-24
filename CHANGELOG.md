@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 - Add `spec-ir` with guarded edges, atomic node rules, and generated Mermaid and overviews; retain support for unversioned graphs.
+- Generate Spec-IR descriptions in full sentences and retain spaces and safe punctuation in quoted Mermaid labels.
 - Add `session-finder` with Antigravity, Claude Code, Codex, and OpenCode references.
 
 ## [0.1.0] — 2026-11-23

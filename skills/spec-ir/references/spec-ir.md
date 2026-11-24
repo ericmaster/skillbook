@@ -60,11 +60,11 @@ edges:
 ## Generation and migration
 
 Run the [renderer](../scripts/render_spec_ir.py) after editing the YAML. It
-refreshes the Mermaid and overview between `<!-- spec-ir:start -->` and
+refreshes the Mermaid and **Description** (Spanish: **Descripción**) between `<!-- spec-ir:start -->` and
 `<!-- spec-ir:end -->` immediately below each graph, including older
-Mermaid-only regions. The overview samples guarded paths (favoring forks), or
-the first edges when unguarded, and at most one baseline rule (favoring numeric
-rules). It is intentionally not exhaustive. Invalid graphs or damaged regions
+Mermaid-only regions and the former overview heading. The description narrates
+up to two transitions (favoring baseline forks) and at most one baseline rule
+(favoring numeric rules). It is intentionally not exhaustive. Invalid graphs or damaged regions
 reject the file without changes. Unrelated Markdown is preserved and reruns
 are byte-idempotent.
 

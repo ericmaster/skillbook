@@ -108,16 +108,17 @@ def test_v2_refresh_independence_and_idempotency(tmp_path):
     assert run(path).returncode == 0
     text = path.read_text()
     assert text.endswith(rest) and "stale" not in text and text.count(START) == 1
-    assert "playback#32;#61;#32;done" in text
-    assert "**Resumen generado.** Leer → Responder si (playback = done y microphone = sí)." in text
-    assert "deadline ≤ 120 s" in text
+    assert 'N0 -->|"Empezar — si (playback = done y microphone = sí)"| N1' in text
+    assert ("**Descripción.** En el paso «Leer», se puede pasar a «Responder» "
+            "cuando «playback» tiene el valor «done» y se cumple «microphone».") in text
+    assert "deadline es como máximo 120 s" in text
     assert run(path).returncode == 0 and path.read_text() == text
     no_meta = "\n".join(line for line in V2.splitlines() if not line.lstrip().startswith("meta:"))
     path.write_text(no_meta + "\n" + text[text.index(START):])
     assert run(path).returncode == 0 and path.read_text().split(START)[1] == text.split(START)[1]
     path.write_text(text.replace("value: done", "value: failed"))
     assert run(path).returncode == 0
-    assert "playback#32;#61;#32;failed" in path.read_text() and "playback = failed" in path.read_text()
+    assert "playback = failed" in path.read_text() and "«playback» tiene el valor «failed»" in path.read_text()
 
 
 # Spec: skills/spec-ir/references/spec-ir.md
@@ -150,11 +151,11 @@ def test_v2_er_is_semantic_and_legacy_er_is_unchanged(tmp_path):
     v2 = v2.replace(next(line for line in v2.splitlines() if "when:" in line), '    er: "||--o{"')
     path.write_text(v2)
     assert run(path).returncode == 0 and "N0 ||--o{ N1" in path.read_text()
-    assert "Empezar: ||--o{" in path.read_text()
+    assert "cardinalidad: ||--o{" in path.read_text()
     legacy = SPEC.replace("kind: flow", "kind: data").replace("sla: 30", 'er: "||--o{"')
     path.write_text(legacy)
     assert run(path).returncode == 0 and "N0 ||--o{ N1" in path.read_text()
-    assert "Generated overview" not in path.read_text()
+    assert "**Description.**" not in path.read_text()
 
 
 # Spec: skills/spec-ir/references/spec-ir.md
@@ -164,5 +165,14 @@ def test_v2_weighted_sum_preserves_weights(tmp_path):
                                "grade, op: weighted_sum, value: {first: 0.123456789, second: 0.876543211}"))
     assert run(path).returncode == 0
     result = path.read_text()
-    assert "grade = 0.123456789 × first + 0.876543211 × second" in result
+    assert "grade se calcula con un 12.3456789 % de first y un 87.6543211 % de second" in result
     assert run(path).returncode == 0 and path.read_text() == result
+
+
+# Spec: skills/spec-ir/references/spec-ir.md
+@pytest.mark.parametrize("heading", ["Generated overview", "Resumen generado"])
+def test_v2_replaces_old_overview(tmp_path, heading):
+    path = tmp_path / "old.md"
+    path.write_text(V2 + f"\n{START}\n```mermaid\nold\n```\n\n**{heading}.** Old text.\n\n{END}\n")
+    assert run(path).returncode == 0
+    assert "**Descripción.**" in path.read_text() and "Old text." not in path.read_text()
